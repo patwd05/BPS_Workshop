@@ -10,9 +10,9 @@
         <link rel="stylesheet" href="css/L.Control.Layers.Tree.css">
         <link rel="stylesheet" href="css/qgis2web.css">
         <link rel="stylesheet" href="css/fontawesome-all.min.css">
+        <link rel="stylesheet" href="css/leaflet-search.css">
         <link rel="stylesheet" href="css/filter.css">
 <link rel="stylesheet" href="css/nouislider.min.css">
-        <link rel="stylesheet" href="css/leaflet-control-geocoder.Geocoder.css">
         <style>
         html, body, #map {
             width: 100%;
@@ -36,12 +36,12 @@
         <script src="js/rbush.min.js"></script>
         <script src="js/labelgun.min.js"></script>
         <script src="js/labels.js"></script>
-        <script src="js/leaflet-control-geocoder.Geocoder.js"></script>
+        <script src="js/leaflet-search.js"></script>
         <script src="js/tailDT.js"></script>
 <script src="js/nouislider.min.js"></script>
 <script src="js/wNumb.js"></script>
         <script src="data/BPSEnrollment_2.js"></script>
-        <script src="data/SchoolLocations_3.js"></script>
+        <script src="data/BPSSchoolLocation_3.js"></script>
         <script>
         var highlightLayer;
         function highlightFeature(e) {
@@ -49,11 +49,12 @@
             highlightLayer.openPopup();
         }
         var map = L.map('map', {
-            zoomControl:true, maxZoom:28, minZoom:1
-        }).fitBounds([[42.21271728548719,-71.32023733926201],[42.43858667245555,-70.86077548099745]]);
+            zoomControl:false, maxZoom:28, minZoom:1
+        }).fitBounds([[42.18547622119646,-71.32180546393678],[42.443434833694326,-70.71658555285062]]);
         var hash = new L.Hash(map);
         map.attributionControl.setPrefix('<a href="https://github.com/tomchadwin/qgis2web" target="_blank">qgis2web</a> &middot; <a href="https://leafletjs.com" title="A JS library for interactive maps">Leaflet</a> &middot; <a href="https://qgis.org">QGIS</a>');
         var autolinker = new Autolinker({truncate: {length: 30, location: 'smart'}});
+        // remove popup's row if "visible-with-data"
         function removeEmptyRowsFromPopupContent(content, feature) {
          var tempDiv = document.createElement('div');
          tempDiv.innerHTML = content;
@@ -67,22 +68,30 @@
          }
          return tempDiv.innerHTML;
         }
-        document.querySelector(".leaflet-popup-pane").addEventListener("load", function(event) {
-          var tagName = event.target.tagName,
-            popup = map._popup;
-          // Also check if flag is already set.
-          if (tagName === "IMG" && popup && !popup._updated) {
-            popup._updated = true; // Set flag to prevent looping.
-            popup.update();
-          }
-        }, true);
+        // add class to format popup if it contains media
+		function addClassToPopupIfMedia(content, popup) {
+			var tempDiv = document.createElement('div');
+			tempDiv.innerHTML = content;
+			if (tempDiv.querySelector('td img')) {
+				popup._contentNode.classList.add('media');
+					// Delay to force the redraw
+					setTimeout(function() {
+						popup.update();
+					}, 10);
+			} else {
+				popup._contentNode.classList.remove('media');
+			}
+		}
+        var zoomControl = L.control.zoom({
+            position: 'topleft'
+        }).addTo(map);
         var bounds_group = new L.featureGroup([]);
         function setBounds() {
         }
-        map.createPane('pane_SatelliteAerial_0');
-        map.getPane('pane_SatelliteAerial_0').style.zIndex = 400;
-        var layer_SatelliteAerial_0 = L.tileLayer('https://api.mapbox.com/v4/mapbox.satellite/{z}/{x}/{y}.webp?sku=101S0AiAdllT3&access_token=pk.eyJ1Ijoiam9uY2hlbWxhIiwiYSI6IjdXUzRocmsifQ.acEmRifqE4Bh2Xz-IY_4Bw', {
-            pane: 'pane_SatelliteAerial_0',
+        map.createPane('pane_SatelliteImage_0');
+        map.getPane('pane_SatelliteImage_0').style.zIndex = 400;
+        var layer_SatelliteImage_0 = L.tileLayer('https://api.mapbox.com/v4/mapbox.satellite/{z}/{x}/{y}.webp?sku=101S0AiAdllT3&access_token=pk.eyJ1Ijoiam9uY2hlbWxhIiwiYSI6IjdXUzRocmsifQ.acEmRifqE4Bh2Xz-IY_4Bw', {
+            pane: 'pane_SatelliteImage_0',
             opacity: 1.0,
             attribution: '<a href="https://www.maxar.com/">Maxar</a>',
             minZoom: 1,
@@ -90,8 +99,8 @@
             minNativeZoom: 0,
             maxNativeZoom: 20
         });
-        layer_SatelliteAerial_0;
-        map.addLayer(layer_SatelliteAerial_0);
+        layer_SatelliteImage_0;
+        map.addLayer(layer_SatelliteImage_0);
         map.createPane('pane_BaseMap_1');
         map.getPane('pane_BaseMap_1').style.zIndex = 401;
         var layer_BaseMap_1 = L.tileLayer('https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', {
@@ -144,11 +153,11 @@
                         <td colspan="2">' + (feature.properties['Gi_Bin'] !== null ? autolinker.link(feature.properties['Gi_Bin'].toLocaleString()) : '') + '</td>\
                     </tr>\
                 </table>';
-            layer.bindPopup(popupContent, {maxHeight: 400});
-            var popup = layer.getPopup();
-            var content = popup.getContent();
-            var updatedContent = removeEmptyRowsFromPopupContent(content, feature);
-            popup.setContent(updatedContent);
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
         }
 
         function style_BPSEnrollment_2_0(feature) {
@@ -241,7 +250,7 @@
             style: style_BPSEnrollment_2_0,
         });
         bounds_group.addLayer(layer_BPSEnrollment_2);
-        function pop_SchoolLocations_3(feature, layer) {
+        function pop_BPSSchoolLocation_3(feature, layer) {
             layer.on({
                 mouseout: function(e) {
                     if (typeof layer.closePopup == 'function') {
@@ -256,53 +265,81 @@
             });
             var popupContent = '<table>\
                     <tr>\
-                        <td class="visible-with-data" id="SCH_NAME"colspan="2"><strong>Name</strong><br />' + (feature.properties['SCH_NAME'] !== null ? autolinker.link(feature.properties['SCH_NAME'].toLocaleString()) : '') + '</td>\
-                    </tr>\
-                    <tr>\
-                        <th scope="row">Community </th>\
-                        <td>' + (feature.properties['Community '] !== null ? autolinker.link(feature.properties['Community '].toLocaleString()) : '') + '</td>\
+                        <td colspan="2"><strong>Name</strong><br />' + (feature.properties['SCH_NAME'] !== null ? autolinker.link(feature.properties['SCH_NAME'].toLocaleString()) : '') + '</td>\
                     </tr>\
                     <tr>\
                         <th scope="row">School Type</th>\
                         <td>' + (feature.properties['School Type'] !== null ? autolinker.link(feature.properties['School Type'].toLocaleString()) : '') + '</td>\
                     </tr>\
                     <tr>\
-                        <th scope="row">Building Age</th>\
-                        <td>' + (feature.properties['Building Age'] !== null ? autolinker.link(feature.properties['Building Age'].toLocaleString()) : '') + '</td>\
-                    </tr>\
-                    <tr>\
-                        <th scope="row">Building Experience Score</th>\
-                        <td>' + (feature.properties['Building Experience Score'] !== null ? autolinker.link(feature.properties['Building Experience Score'].toLocaleString()) : '') + '</td>\
+                        <th scope="row">Model Space Summary</th>\
+                        <td>' + (feature.properties['Model Space Summary'] !== null ? autolinker.link(feature.properties['Model Space Summary'].toLocaleString()) : '') + '</td>\
                     </tr>\
                     <tr>\
                         <th scope="row">Enrollment</th>\
-                        <td class="visible-with-data" id="Enrollment">' + (feature.properties['Enrollment'] !== null ? autolinker.link(feature.properties['Enrollment'].toLocaleString()) : '') + '</td>\
+                        <td>' + (feature.properties['Enrollment'] !== null ? autolinker.link(feature.properties['Enrollment'].toLocaleString()) : '') + '</td>\
                     </tr>\
                     <tr>\
-                        <th scope="row">Current Capacity</th>\
-                        <td>' + (feature.properties['Current Capacity'] !== null ? autolinker.link(feature.properties['Current Capacity'].toLocaleString()) : '') + '</td>\
+                        <th scope="row">Capacity</th>\
+                        <td>' + (feature.properties['Capacity'] !== null ? autolinker.link(feature.properties['Capacity'].toLocaleString()) : '') + '</td>\
                     </tr>\
                     <tr>\
-                        <th scope="row">Utilization %</th>\
-                        <td>' + (feature.properties['Utilization %'] !== null ? autolinker.link(feature.properties['Utilization %'].toLocaleString()) : '') + '</td>\
+                        <th scope="row">SY24-25 Utilization</th>\
+                        <td>' + (feature.properties['SY24-25 Utilization'] !== null ? autolinker.link(feature.properties['SY24-25 Utilization'].toLocaleString()) : '') + '</td>\
                     </tr>\
                     <tr>\
-                        <th scope="row">Model Space</th>\
-                        <td>' + (feature.properties['Model Space'] !== null ? autolinker.link(feature.properties['Model Space'].toLocaleString()) : '') + '</td>\
+                        <th scope="row">Utilization (5 year avg)</th>\
+                        <td>' + (feature.properties['Utilization (5 year avg)'] !== null ? autolinker.link(feature.properties['Utilization (5 year avg)'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Building Experience Score (0-4)</th>\
+                        <td>' + (feature.properties['Building Experience Score (0-4)'] !== null ? autolinker.link(feature.properties['Building Experience Score (0-4)'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Continuum of Services</th>\
+                        <td>' + (feature.properties['Continuum of Services'] !== null ? autolinker.link(feature.properties['Continuum of Services'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">% Asian</th>\
+                        <td>' + (feature.properties['% Asian'] !== null ? autolinker.link(feature.properties['% Asian'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">% Black</th>\
+                        <td>' + (feature.properties['% Black'] !== null ? autolinker.link(feature.properties['% Black'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">% Hispanic</th>\
+                        <td>' + (feature.properties['% Hispanic'] !== null ? autolinker.link(feature.properties['% Hispanic'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">% Other</th>\
+                        <td>' + (feature.properties['% Other'] !== null ? autolinker.link(feature.properties['% Other'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">% White</th>\
+                        <td>' + (feature.properties['% White'] !== null ? autolinker.link(feature.properties['% White'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">% Multilingual</th>\
+                        <td>' + (feature.properties['% Multilingual'] !== null ? autolinker.link(feature.properties['% Multilingual'].toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">% SWD</th>\
+                        <td>' + (feature.properties['% SWD'] !== null ? autolinker.link(feature.properties['% SWD'].toLocaleString()) : '') + '</td>\
                     </tr>\
                 </table>';
-            layer.bindPopup(popupContent, {maxHeight: 400});
-            var popup = layer.getPopup();
-            var content = popup.getContent();
-            var updatedContent = removeEmptyRowsFromPopupContent(content, feature);
-            popup.setContent(updatedContent);
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
         }
 
-        function style_SchoolLocations_3_0(feature) {
+        function style_BPSSchoolLocation_3_0(feature) {
             switch(String(feature.properties['School Type'])) {
                 case 'ELC':
                     return {
-                pane: 'pane_SchoolLocations_3',
+                pane: 'pane_BPSSchoolLocation_3',
                 radius: 6.4,
                 opacity: 1,
                 color: 'rgba(35,35,35,1.0)',
@@ -318,7 +355,7 @@
                     break;
                 case 'Elementary ':
                     return {
-                pane: 'pane_SchoolLocations_3',
+                pane: 'pane_BPSSchoolLocation_3',
                 radius: 6.4,
                 opacity: 1,
                 color: 'rgba(35,35,35,1.0)',
@@ -334,7 +371,7 @@
                     break;
                 case 'Secondary':
                     return {
-                pane: 'pane_SchoolLocations_3',
+                pane: 'pane_BPSSchoolLocation_3',
                 radius: 6.4,
                 opacity: 1,
                 color: 'rgba(35,35,35,1.0)',
@@ -350,42 +387,31 @@
                     break;
             }
         }
-        map.createPane('pane_SchoolLocations_3');
-        map.getPane('pane_SchoolLocations_3').style.zIndex = 403;
-        map.getPane('pane_SchoolLocations_3').style['mix-blend-mode'] = 'normal';
-        var layer_SchoolLocations_3 = new L.geoJson(json_SchoolLocations_3, {
+        map.createPane('pane_BPSSchoolLocation_3');
+        map.getPane('pane_BPSSchoolLocation_3').style.zIndex = 403;
+        map.getPane('pane_BPSSchoolLocation_3').style['mix-blend-mode'] = 'normal';
+        var layer_BPSSchoolLocation_3 = new L.geoJson(json_BPSSchoolLocation_3, {
             attribution: '',
             interactive: true,
-            dataVar: 'json_SchoolLocations_3',
-            layerName: 'layer_SchoolLocations_3',
-            pane: 'pane_SchoolLocations_3',
-            onEachFeature: pop_SchoolLocations_3,
+            dataVar: 'json_BPSSchoolLocation_3',
+            layerName: 'layer_BPSSchoolLocation_3',
+            pane: 'pane_BPSSchoolLocation_3',
+            onEachFeature: pop_BPSSchoolLocation_3,
             pointToLayer: function (feature, latlng) {
                 var context = {
                     feature: feature,
                     variables: {}
                 };
-                return L.circleMarker(latlng, style_SchoolLocations_3_0(feature));
+                return L.circleMarker(latlng, style_BPSSchoolLocation_3_0(feature));
             },
         });
-        bounds_group.addLayer(layer_SchoolLocations_3);
-        map.addLayer(layer_SchoolLocations_3);
-        var osmGeocoder = new L.Control.Geocoder({
-            collapsed: true,
-            position: 'topleft',
-            text: 'Search',
-            title: 'Testing'
-        }).addTo(map);
-        document.getElementsByClassName('leaflet-control-geocoder-icon')[0]
-        .className += ' fa fa-search';
-        document.getElementsByClassName('leaflet-control-geocoder-icon')[0]
-        .title += 'Search for a place';
-        var baseMaps = {};
+        bounds_group.addLayer(layer_BPSSchoolLocation_3);
+        map.addLayer(layer_BPSSchoolLocation_3);
         var overlaysTree = [
-            {label: 'School Locations<br /><table><tr><td style="text-align: center;"><img src="legend/SchoolLocations_3_ELC0.png" /></td><td>ELC</td></tr><tr><td style="text-align: center;"><img src="legend/SchoolLocations_3_Elementary1.png" /></td><td>Elementary </td></tr><tr><td style="text-align: center;"><img src="legend/SchoolLocations_3_Secondary2.png" /></td><td>Secondary</td></tr></table>', layer: layer_SchoolLocations_3},
+            {label: 'BPS School Location<br /><table><tr><td style="text-align: center;"><img src="legend/BPSSchoolLocation_3_ELC0.png" /></td><td>ELC</td></tr><tr><td style="text-align: center;"><img src="legend/BPSSchoolLocation_3_Elementary1.png" /></td><td>Elementary </td></tr><tr><td style="text-align: center;"><img src="legend/BPSSchoolLocation_3_Secondary2.png" /></td><td>Secondary</td></tr></table>', layer: layer_BPSSchoolLocation_3},
             {label: 'BPS Enrollment <br /><table><tr><td style="text-align: center;"><img src="legend/BPSEnrollment_2_50.png" /></td><td><5</td></tr><tr><td style="text-align: center;"><img src="legend/BPSEnrollment_2_5251.png" /></td><td>5-25</td></tr><tr><td style="text-align: center;"><img src="legend/BPSEnrollment_2_25802.png" /></td><td>25-80</td></tr><tr><td style="text-align: center;"><img src="legend/BPSEnrollment_2_801403.png" /></td><td>80-140</td></tr><tr><td style="text-align: center;"><img src="legend/BPSEnrollment_2_1404.png" /></td><td>>140</td></tr></table>', layer: layer_BPSEnrollment_2},
             {label: "Base Map", layer: layer_BaseMap_1},
-            {label: "Satellite Aerial", layer: layer_SatelliteAerial_0},]
+            {label: " Satellite Image", layer: layer_SatelliteImage_0},]
         var lay = L.control.layers.tree(null, overlaysTree,{
             //namedToggle: true,
             //selectorBack: false,
@@ -396,7 +422,64 @@
             collapsed: false, 
         });
         lay.addTo(map);
+		document.addEventListener("DOMContentLoaded", function() {
+            // set new Layers List height which considers toggle icon
+            function newLayersListHeight() {
+                var layerScrollbarElement = document.querySelector('.leaflet-control-layers-scrollbar');
+                if (layerScrollbarElement) {
+                    var layersListElement = document.querySelector('.leaflet-control-layers-list');
+                    var originalHeight = layersListElement.style.height 
+                        || window.getComputedStyle(layersListElement).height;
+                    var newHeight = parseFloat(originalHeight) - 50;
+                    layersListElement.style.height = newHeight + 'px';
+                }
+            }
+            var isLayersListExpanded = true;
+            var controlLayersElement = document.querySelector('.leaflet-control-layers');
+            var toggleLayerControl = document.querySelector('.leaflet-control-layers-toggle');
+            // toggle Collapsed/Expanded and apply new Layers List height
+            toggleLayerControl.addEventListener('click', function() {
+                if (isLayersListExpanded) {
+                    controlLayersElement.classList.remove('leaflet-control-layers-expanded');
+                } else {
+                    controlLayersElement.classList.add('leaflet-control-layers-expanded');
+                }
+                isLayersListExpanded = !isLayersListExpanded;
+                newLayersListHeight()
+            });	
+			// apply new Layers List height if toggle layerstree
+			if (controlLayersElement) {
+				controlLayersElement.addEventListener('click', function(event) {
+					var toggleLayerHeaderPointer = event.target.closest('.leaflet-layerstree-header-pointer span');
+					if (toggleLayerHeaderPointer) {
+						newLayersListHeight();
+					}
+				});
+			}
+            // Collapsed/Expanded at Start to apply new height
+            setTimeout(function() {
+                toggleLayerControl.click();
+            }, 10);
+            setTimeout(function() {
+                toggleLayerControl.click();
+            }, 10);
+            // Collapsed touch/small screen
+            var isSmallScreen = window.innerWidth < 650;
+            if (isSmallScreen) {
+                setTimeout(function() {
+                    controlLayersElement.classList.remove('leaflet-control-layers-expanded');
+                    isLayersListExpanded = !isLayersListExpanded;
+                }, 500);
+            }  
+        });       
         setBounds();
+        map.addControl(new L.Control.Search({
+            layer: layer_BPSSchoolLocation_3,
+            initial: false,
+            hideMarkerOnCollapse: true,
+            propertyName: 'SCH_NAME'}));
+        document.getElementsByClassName('search-button')[0].className +=
+         ' fa fa-binoculars';
         var mapDiv = document.getElementById('map');
         var row = document.createElement('div');
         row.className="row";
@@ -416,7 +499,7 @@
         document.getElementById("all").appendChild(col1);
         document.getElementById("all").appendChild(col2);
         col1.appendChild(mapDiv)
-        var Filters = {"School Enrollment": "int","Building Utilization %": "real","SWD %": "real","EL %": "real","School Type": "str","Neighborhood": "str","Building Experience Score": "str","Model Space": "str"};
+        var Filters = {"Enrollment": "int","Utilization (5 year avg)": "int","SY24-25 Utilization": "real","% Multilingual": "real","% SWD": "real","School Type": "str","Neighborhood": "str","Continuum of Services": "str","Building Experience Score (0-4)": "str","Model Space Summary": "str"};
         function filterFunc() {
           map.eachLayer(function(lyr){
           if ("options" in lyr && "dataVar" in lyr["options"]){
@@ -508,74 +591,146 @@
         }
             document.getElementById("menu").appendChild(
                 document.createElement("div"));
-            var div_SchoolEnrollment = document.createElement("div");
-            div_SchoolEnrollment.id = "div_SchoolEnrollment";
-            div_SchoolEnrollment.className = "slider";
-            document.getElementById("menu").appendChild(div_SchoolEnrollment);
-            var lab_SchoolEnrollment = document.createElement('div');
-            lab_SchoolEnrollment.innerHTML  = 'School Enrollment: <span id="val_SchoolEnrollment"></span>';
-            lab_SchoolEnrollment.className = 'filterlabel';
-            document.getElementById("menu").appendChild(lab_SchoolEnrollment);
-            var reset_SchoolEnrollment = document.createElement('div');
-            reset_SchoolEnrollment.innerHTML = 'clear filter';
-            reset_SchoolEnrollment.className = 'filterlabel';
-            lab_SchoolEnrollment.className = 'filterlabel';
-            reset_SchoolEnrollment.onclick = function() {
-                sel_SchoolEnrollment.noUiSlider.reset();
+            var div_Enrollment = document.createElement("div");
+            div_Enrollment.id = "div_Enrollment";
+            div_Enrollment.className = "slider";
+            document.getElementById("menu").appendChild(div_Enrollment);
+            var lab_Enrollment = document.createElement('div');
+            lab_Enrollment.innerHTML  = 'Enrollment: <span id="val_Enrollment"></span>';
+            lab_Enrollment.className = 'filterlabel';
+            document.getElementById("menu").appendChild(lab_Enrollment);
+            var reset_Enrollment = document.createElement('div');
+            reset_Enrollment.innerHTML = 'clear filter';
+            reset_Enrollment.className = 'filterlabel';
+            lab_Enrollment.className = 'filterlabel';
+            reset_Enrollment.onclick = function() {
+                sel_Enrollment.noUiSlider.reset();
             };
-            document.getElementById("menu").appendChild(reset_SchoolEnrollment);
-            var sel_SchoolEnrollment = document.getElementById('div_SchoolEnrollment');
-            noUiSlider.create(sel_SchoolEnrollment, {
+            document.getElementById("menu").appendChild(reset_Enrollment);
+            var sel_Enrollment = document.getElementById('div_Enrollment');
+            noUiSlider.create(sel_Enrollment, {
                 connect: true,
-                start: [12, 2425],
+                start: [13, 2424],
                 step: 1,
                 format: wNumb({
                     decimals: 0,
                     }),
                 range: {
-                min: 12,
-                max: 2425
+                min: 13,
+                max: 2424
                 }
             });
-            sel_SchoolEnrollment.noUiSlider.on('update', function (values) {
+            sel_Enrollment.noUiSlider.on('update', function (values) {
             filterVals =[];
             for (value in values){
             filterVals.push(parseInt(value))
             }
-            val_SchoolEnrollment = document.getElementById('val_SchoolEnrollment');
-            val_SchoolEnrollment.innerHTML = values.join(' - ');
+            val_Enrollment = document.getElementById('val_Enrollment');
+            val_Enrollment.innerHTML = values.join(' - ');
                 filterFunc()
             });
             document.getElementById("menu").appendChild(
                 document.createElement("div"));
-            var div_BuildingUtilization = document.createElement("div");
-            div_BuildingUtilization.id = "div_BuildingUtilization";
-            div_BuildingUtilization.className = "slider";
-            document.getElementById("menu").appendChild(div_BuildingUtilization);
-            var lab_BuildingUtilization = document.createElement('div');
-            lab_BuildingUtilization.innerHTML  = 'Building Utilization %: <span id="val_BuildingUtilization"></span>';
-            lab_BuildingUtilization.className = 'filterlabel';
-            document.getElementById("menu").appendChild(lab_BuildingUtilization);
-            var reset_BuildingUtilization = document.createElement('div');
-            reset_BuildingUtilization.innerHTML = 'clear filter';
-            reset_BuildingUtilization.className = 'filterlabel';
-            lab_BuildingUtilization.className = 'filterlabel';
-            reset_BuildingUtilization.onclick = function() {
-                sel_BuildingUtilization.noUiSlider.reset();
+            var div_Utilization5yearavg = document.createElement("div");
+            div_Utilization5yearavg.id = "div_Utilization5yearavg";
+            div_Utilization5yearavg.className = "slider";
+            document.getElementById("menu").appendChild(div_Utilization5yearavg);
+            var lab_Utilization5yearavg = document.createElement('div');
+            lab_Utilization5yearavg.innerHTML  = 'Utilization (5 year avg): <span id="val_Utilization5yearavg"></span>';
+            lab_Utilization5yearavg.className = 'filterlabel';
+            document.getElementById("menu").appendChild(lab_Utilization5yearavg);
+            var reset_Utilization5yearavg = document.createElement('div');
+            reset_Utilization5yearavg.innerHTML = 'clear filter';
+            reset_Utilization5yearavg.className = 'filterlabel';
+            lab_Utilization5yearavg.className = 'filterlabel';
+            reset_Utilization5yearavg.onclick = function() {
+                sel_Utilization5yearavg.noUiSlider.reset();
             };
-            document.getElementById("menu").appendChild(reset_BuildingUtilization);
-            var sel_BuildingUtilization = document.getElementById('div_BuildingUtilization');
-            noUiSlider.create(sel_BuildingUtilization, {
+            document.getElementById("menu").appendChild(reset_Utilization5yearavg);
+            var sel_Utilization5yearavg = document.getElementById('div_Utilization5yearavg');
+            noUiSlider.create(sel_Utilization5yearavg, {
                 connect: true,
-                start: [1.0, 218.24],
+                start: [0, 193],
+                step: 1,
+                format: wNumb({
+                    decimals: 0,
+                    }),
                 range: {
-                min: 1.0,
-                max: 218.24
+                min: 0,
+                max: 193
                 }
             });
-            sel_BuildingUtilization.noUiSlider.on('update', function (values) {
-            val_BuildingUtilization = document.getElementById('val_BuildingUtilization');
-            val_BuildingUtilization.innerHTML = values.join(' - ');
+            sel_Utilization5yearavg.noUiSlider.on('update', function (values) {
+            filterVals =[];
+            for (value in values){
+            filterVals.push(parseInt(value))
+            }
+            val_Utilization5yearavg = document.getElementById('val_Utilization5yearavg');
+            val_Utilization5yearavg.innerHTML = values.join(' - ');
+                filterFunc()
+            });
+            document.getElementById("menu").appendChild(
+                document.createElement("div"));
+            var div_SY2425Utilization = document.createElement("div");
+            div_SY2425Utilization.id = "div_SY2425Utilization";
+            div_SY2425Utilization.className = "slider";
+            document.getElementById("menu").appendChild(div_SY2425Utilization);
+            var lab_SY2425Utilization = document.createElement('div');
+            lab_SY2425Utilization.innerHTML  = 'SY24-25 Utilization: <span id="val_SY2425Utilization"></span>';
+            lab_SY2425Utilization.className = 'filterlabel';
+            document.getElementById("menu").appendChild(lab_SY2425Utilization);
+            var reset_SY2425Utilization = document.createElement('div');
+            reset_SY2425Utilization.innerHTML = 'clear filter';
+            reset_SY2425Utilization.className = 'filterlabel';
+            lab_SY2425Utilization.className = 'filterlabel';
+            reset_SY2425Utilization.onclick = function() {
+                sel_SY2425Utilization.noUiSlider.reset();
+            };
+            document.getElementById("menu").appendChild(reset_SY2425Utilization);
+            var sel_SY2425Utilization = document.getElementById('div_SY2425Utilization');
+            noUiSlider.create(sel_SY2425Utilization, {
+                connect: true,
+                start: [20.8, 223.3],
+                range: {
+                min: 20.8,
+                max: 223.3
+                }
+            });
+            sel_SY2425Utilization.noUiSlider.on('update', function (values) {
+            val_SY2425Utilization = document.getElementById('val_SY2425Utilization');
+            val_SY2425Utilization.innerHTML = values.join(' - ');
+                filterFunc()
+            });
+            document.getElementById("menu").appendChild(
+                document.createElement("div"));
+            var div_Multilingual = document.createElement("div");
+            div_Multilingual.id = "div_Multilingual";
+            div_Multilingual.className = "slider";
+            document.getElementById("menu").appendChild(div_Multilingual);
+            var lab_Multilingual = document.createElement('div');
+            lab_Multilingual.innerHTML  = '% Multilingual: <span id="val_Multilingual"></span>';
+            lab_Multilingual.className = 'filterlabel';
+            document.getElementById("menu").appendChild(lab_Multilingual);
+            var reset_Multilingual = document.createElement('div');
+            reset_Multilingual.innerHTML = 'clear filter';
+            reset_Multilingual.className = 'filterlabel';
+            lab_Multilingual.className = 'filterlabel';
+            reset_Multilingual.onclick = function() {
+                sel_Multilingual.noUiSlider.reset();
+            };
+            document.getElementById("menu").appendChild(reset_Multilingual);
+            var sel_Multilingual = document.getElementById('div_Multilingual');
+            noUiSlider.create(sel_Multilingual, {
+                connect: true,
+                start: [0.6, 92.9],
+                range: {
+                min: 0.6,
+                max: 92.9
+                }
+            });
+            sel_Multilingual.noUiSlider.on('update', function (values) {
+            val_Multilingual = document.getElementById('val_Multilingual');
+            val_Multilingual.innerHTML = values.join(' - ');
                 filterFunc()
             });
             document.getElementById("menu").appendChild(
@@ -585,7 +740,7 @@
             div_SWD.className = "slider";
             document.getElementById("menu").appendChild(div_SWD);
             var lab_SWD = document.createElement('div');
-            lab_SWD.innerHTML  = 'SWD %: <span id="val_SWD"></span>';
+            lab_SWD.innerHTML  = '% SWD: <span id="val_SWD"></span>';
             lab_SWD.className = 'filterlabel';
             document.getElementById("menu").appendChild(lab_SWD);
             var reset_SWD = document.createElement('div');
@@ -599,47 +754,15 @@
             var sel_SWD = document.getElementById('div_SWD');
             noUiSlider.create(sel_SWD, {
                 connect: true,
-                start: [3.6, 100.0],
+                start: [3.3, 100.0],
                 range: {
-                min: 3.6,
+                min: 3.3,
                 max: 100.0
                 }
             });
             sel_SWD.noUiSlider.on('update', function (values) {
             val_SWD = document.getElementById('val_SWD');
             val_SWD.innerHTML = values.join(' - ');
-                filterFunc()
-            });
-            document.getElementById("menu").appendChild(
-                document.createElement("div"));
-            var div_EL = document.createElement("div");
-            div_EL.id = "div_EL";
-            div_EL.className = "slider";
-            document.getElementById("menu").appendChild(div_EL);
-            var lab_EL = document.createElement('div');
-            lab_EL.innerHTML  = 'EL %: <span id="val_EL"></span>';
-            lab_EL.className = 'filterlabel';
-            document.getElementById("menu").appendChild(lab_EL);
-            var reset_EL = document.createElement('div');
-            reset_EL.innerHTML = 'clear filter';
-            reset_EL.className = 'filterlabel';
-            lab_EL.className = 'filterlabel';
-            reset_EL.onclick = function() {
-                sel_EL.noUiSlider.reset();
-            };
-            document.getElementById("menu").appendChild(reset_EL);
-            var sel_EL = document.getElementById('div_EL');
-            noUiSlider.create(sel_EL, {
-                connect: true,
-                start: [1.1, 94.5],
-                range: {
-                min: 1.1,
-                max: 94.5
-                }
-            });
-            sel_EL.noUiSlider.on('update', function (values) {
-            val_EL = document.getElementById('val_EL');
-            val_EL.innerHTML = values.join(' - ');
                 filterFunc()
             });
             document.getElementById("menu").appendChild(
@@ -720,78 +843,109 @@
             div_Neighborhood.appendChild(reset_Neighborhood);
             document.getElementById("menu").appendChild(
                 document.createElement("div"));
-            var div_BuildingExperienceScore = document.createElement('div');
-            div_BuildingExperienceScore.id = "div_BuildingExperienceScore";
-            div_BuildingExperienceScore.className= "filterselect";
-            document.getElementById("menu").appendChild(div_BuildingExperienceScore);
-            sel_BuildingExperienceScore = document.createElement('select');
-            sel_BuildingExperienceScore.multiple = true;
-            sel_BuildingExperienceScore.size = 6;
-            sel_BuildingExperienceScore.id = "sel_BuildingExperienceScore";
-            var BuildingExperienceScore_options_str = "";
-            sel_BuildingExperienceScore.onchange = function(){filterFunc()};
-            BuildingExperienceScore_options_str  += '<option value="0">0</option>';
-            BuildingExperienceScore_options_str  += '<option value="1">1</option>';
-            BuildingExperienceScore_options_str  += '<option value="2">2</option>';
-            BuildingExperienceScore_options_str  += '<option value="3">3</option>';
-            BuildingExperienceScore_options_str  += '<option value="4">4</option>';
-            BuildingExperienceScore_options_str  += '<option value="Not assessed">Not assessed</option>';
-            sel_BuildingExperienceScore.innerHTML = BuildingExperienceScore_options_str;
-            div_BuildingExperienceScore.appendChild(sel_BuildingExperienceScore);
-            var lab_BuildingExperienceScore = document.createElement('div');
-            lab_BuildingExperienceScore.innerHTML = 'Building Experience Score';
-            lab_BuildingExperienceScore.className = 'filterlabel';
-            div_BuildingExperienceScore.appendChild(lab_BuildingExperienceScore);
-            var reset_BuildingExperienceScore = document.createElement('div');
-            reset_BuildingExperienceScore.innerHTML = 'clear filter';
-            reset_BuildingExperienceScore.className = 'filterlabel';
-            reset_BuildingExperienceScore.onclick = function() {
-                var options = document.getElementById("sel_BuildingExperienceScore").options;
+            var div_ContinuumofServices = document.createElement('div');
+            div_ContinuumofServices.id = "div_ContinuumofServices";
+            div_ContinuumofServices.className= "filterselect";
+            document.getElementById("menu").appendChild(div_ContinuumofServices);
+            sel_ContinuumofServices = document.createElement('select');
+            sel_ContinuumofServices.multiple = true;
+            sel_ContinuumofServices.size = 2;
+            sel_ContinuumofServices.id = "sel_ContinuumofServices";
+            var ContinuumofServices_options_str = "";
+            sel_ContinuumofServices.onchange = function(){filterFunc()};
+            ContinuumofServices_options_str  += '<option value="No">No</option>';
+            ContinuumofServices_options_str  += '<option value="Yes">Yes</option>';
+            sel_ContinuumofServices.innerHTML = ContinuumofServices_options_str;
+            div_ContinuumofServices.appendChild(sel_ContinuumofServices);
+            var lab_ContinuumofServices = document.createElement('div');
+            lab_ContinuumofServices.innerHTML = 'Continuum of Services';
+            lab_ContinuumofServices.className = 'filterlabel';
+            div_ContinuumofServices.appendChild(lab_ContinuumofServices);
+            var reset_ContinuumofServices = document.createElement('div');
+            reset_ContinuumofServices.innerHTML = 'clear filter';
+            reset_ContinuumofServices.className = 'filterlabel';
+            reset_ContinuumofServices.onclick = function() {
+                var options = document.getElementById("sel_ContinuumofServices").options;
                 for (var i=0; i < options.length; i++) {
                     options[i].selected = false;
                 }
                 filterFunc();
             };
-            div_BuildingExperienceScore.appendChild(reset_BuildingExperienceScore);
+            div_ContinuumofServices.appendChild(reset_ContinuumofServices);
             document.getElementById("menu").appendChild(
                 document.createElement("div"));
-            var div_ModelSpace = document.createElement('div');
-            div_ModelSpace.id = "div_ModelSpace";
-            div_ModelSpace.className= "filterselect";
-            document.getElementById("menu").appendChild(div_ModelSpace);
-            sel_ModelSpace = document.createElement('select');
-            sel_ModelSpace.multiple = true;
-            sel_ModelSpace.size = 10;
-            sel_ModelSpace.id = "sel_ModelSpace";
-            var ModelSpace_options_str = "";
-            sel_ModelSpace.onchange = function(){filterFunc()};
-            ModelSpace_options_str  += '<option value="Large 7-12">Large 7-12</option>';
-            ModelSpace_options_str  += '<option value="Large PK-6">Large PK-6</option>';
-            ModelSpace_options_str  += '<option value="Large PK-6 ">Large PK-6 </option>';
-            ModelSpace_options_str  += '<option value="Medium 7-12">Medium 7-12</option>';
-            ModelSpace_options_str  += '<option value="No Feasible Space Model ">No Feasible Space Model </option>';
-            ModelSpace_options_str  += '<option value="Not assessed">Not assessed</option>';
-            ModelSpace_options_str  += '<option value="Small 7-12">Small 7-12</option>';
-            ModelSpace_options_str  += '<option value="Small PK-6">Small PK-6</option>';
-            ModelSpace_options_str  += '<option value="Small PK-6 ">Small PK-6 </option>';
-            ModelSpace_options_str  += '<option value="Special Education Day School">Special Education Day School</option>';
-            sel_ModelSpace.innerHTML = ModelSpace_options_str;
-            div_ModelSpace.appendChild(sel_ModelSpace);
-            var lab_ModelSpace = document.createElement('div');
-            lab_ModelSpace.innerHTML = 'Model Space';
-            lab_ModelSpace.className = 'filterlabel';
-            div_ModelSpace.appendChild(lab_ModelSpace);
-            var reset_ModelSpace = document.createElement('div');
-            reset_ModelSpace.innerHTML = 'clear filter';
-            reset_ModelSpace.className = 'filterlabel';
-            reset_ModelSpace.onclick = function() {
-                var options = document.getElementById("sel_ModelSpace").options;
+            var div_BuildingExperienceScore04 = document.createElement('div');
+            div_BuildingExperienceScore04.id = "div_BuildingExperienceScore04";
+            div_BuildingExperienceScore04.className= "filterselect";
+            document.getElementById("menu").appendChild(div_BuildingExperienceScore04);
+            sel_BuildingExperienceScore04 = document.createElement('select');
+            sel_BuildingExperienceScore04.multiple = true;
+            sel_BuildingExperienceScore04.size = 6;
+            sel_BuildingExperienceScore04.id = "sel_BuildingExperienceScore04";
+            var BuildingExperienceScore04_options_str = "";
+            sel_BuildingExperienceScore04.onchange = function(){filterFunc()};
+            BuildingExperienceScore04_options_str  += '<option value="0">0</option>';
+            BuildingExperienceScore04_options_str  += '<option value="1">1</option>';
+            BuildingExperienceScore04_options_str  += '<option value="2">2</option>';
+            BuildingExperienceScore04_options_str  += '<option value="3">3</option>';
+            BuildingExperienceScore04_options_str  += '<option value="4">4</option>';
+            BuildingExperienceScore04_options_str  += '<option value="Not Assessed">Not Assessed</option>';
+            sel_BuildingExperienceScore04.innerHTML = BuildingExperienceScore04_options_str;
+            div_BuildingExperienceScore04.appendChild(sel_BuildingExperienceScore04);
+            var lab_BuildingExperienceScore04 = document.createElement('div');
+            lab_BuildingExperienceScore04.innerHTML = 'Building Experience Score (0-4)';
+            lab_BuildingExperienceScore04.className = 'filterlabel';
+            div_BuildingExperienceScore04.appendChild(lab_BuildingExperienceScore04);
+            var reset_BuildingExperienceScore04 = document.createElement('div');
+            reset_BuildingExperienceScore04.innerHTML = 'clear filter';
+            reset_BuildingExperienceScore04.className = 'filterlabel';
+            reset_BuildingExperienceScore04.onclick = function() {
+                var options = document.getElementById("sel_BuildingExperienceScore04").options;
                 for (var i=0; i < options.length; i++) {
                     options[i].selected = false;
                 }
                 filterFunc();
             };
-            div_ModelSpace.appendChild(reset_ModelSpace);
+            div_BuildingExperienceScore04.appendChild(reset_BuildingExperienceScore04);
+            document.getElementById("menu").appendChild(
+                document.createElement("div"));
+            var div_ModelSpaceSummary = document.createElement('div');
+            div_ModelSpaceSummary.id = "div_ModelSpaceSummary";
+            div_ModelSpaceSummary.className= "filterselect";
+            document.getElementById("menu").appendChild(div_ModelSpaceSummary);
+            sel_ModelSpaceSummary = document.createElement('select');
+            sel_ModelSpaceSummary.multiple = true;
+            sel_ModelSpaceSummary.size = 10;
+            sel_ModelSpaceSummary.id = "sel_ModelSpaceSummary";
+            var ModelSpaceSummary_options_str = "";
+            sel_ModelSpaceSummary.onchange = function(){filterFunc()};
+            ModelSpaceSummary_options_str  += '<option value="Large 7-12">Large 7-12</option>';
+            ModelSpaceSummary_options_str  += '<option value="Large PK-6">Large PK-6</option>';
+            ModelSpaceSummary_options_str  += '<option value="Large PK-6 ">Large PK-6 </option>';
+            ModelSpaceSummary_options_str  += '<option value="Medium 7-12">Medium 7-12</option>';
+            ModelSpaceSummary_options_str  += '<option value="No Feasible Space Model ">No Feasible Space Model </option>';
+            ModelSpaceSummary_options_str  += '<option value="Not assessed">Not assessed</option>';
+            ModelSpaceSummary_options_str  += '<option value="Small 7-12">Small 7-12</option>';
+            ModelSpaceSummary_options_str  += '<option value="Small PK-6">Small PK-6</option>';
+            ModelSpaceSummary_options_str  += '<option value="Small PK-6 ">Small PK-6 </option>';
+            ModelSpaceSummary_options_str  += '<option value="Special Education Day School">Special Education Day School</option>';
+            sel_ModelSpaceSummary.innerHTML = ModelSpaceSummary_options_str;
+            div_ModelSpaceSummary.appendChild(sel_ModelSpaceSummary);
+            var lab_ModelSpaceSummary = document.createElement('div');
+            lab_ModelSpaceSummary.innerHTML = 'Model Space Summary';
+            lab_ModelSpaceSummary.className = 'filterlabel';
+            div_ModelSpaceSummary.appendChild(lab_ModelSpaceSummary);
+            var reset_ModelSpaceSummary = document.createElement('div');
+            reset_ModelSpaceSummary.innerHTML = 'clear filter';
+            reset_ModelSpaceSummary.className = 'filterlabel';
+            reset_ModelSpaceSummary.onclick = function() {
+                var options = document.getElementById("sel_ModelSpaceSummary").options;
+                for (var i=0; i < options.length; i++) {
+                    options[i].selected = false;
+                }
+                filterFunc();
+            };
+            div_ModelSpaceSummary.appendChild(reset_ModelSpaceSummary);
         </script>
     </body>
 </html>
